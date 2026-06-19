@@ -1,10 +1,13 @@
 import { ipcMain, dialog } from 'electron'
+import { extname } from 'path'
 import { scanDirectoryService } from '../services/scanner'
 import { thumbnailService } from '../services/thumbnail-generator'
 import { metadataService } from '../services/metadata.service'
 import { cacheService } from '../services/cache.service'
 import { detectLivePhotos, getLivePhotoVideoPath } from '../services/live-photo.service'
 import type { ScanProgress } from '@shared/types'
+
+const VIDEO_EXTS = new Set(['.mov', '.mp4', '.webm', '.mkv', '.avi'])
 
 export function registerIpcHandlers(): void {
   // Directory selection
@@ -36,8 +39,13 @@ export function registerIpcHandlers(): void {
     return metadataService.extractMetadata(filePath)
   })
 
-  // Preview — use thumbnail service with preview size (1600px), cached on disk
+  // Preview — for images: 1600px resized JPEG (cached on disk).
+  // For videos: raw file:// URL for playback.
   ipcMain.handle('preview:readFile', async (_event, filePath: string) => {
+    const ext = extname(filePath).toLowerCase()
+    if (VIDEO_EXTS.has(ext)) {
+      return `file:///${filePath.replace(/\\/g, '/')}`
+    }
     return thumbnailService.getThumbnail(filePath, 'preview')
   })
 

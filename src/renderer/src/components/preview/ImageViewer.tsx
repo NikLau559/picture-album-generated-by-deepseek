@@ -33,16 +33,13 @@ export function ImageViewer({ item, thumbnailSrc }: ImageViewerProps): JSX.Eleme
   }
 
   return (
-    <div
-      className="max-w-full max-h-full flex items-center justify-center overflow-hidden p-8 relative"
-      onWheel={handleWheel}
-    >
+    <div className="w-full h-full flex items-center justify-center overflow-hidden p-8 relative">
       {/* Thumbnail placeholder until preview loads */}
       {thumbnailSrc && !fullLoaded && (
         <img
           src={thumbnailSrc}
           alt=""
-          className="max-w-full max-h-full object-contain absolute blur-xl scale-105"
+          className="absolute inset-0 w-full h-full object-contain blur-xl scale-105"
         />
       )}
 
@@ -50,7 +47,7 @@ export function ImageViewer({ item, thumbnailSrc }: ImageViewerProps): JSX.Eleme
         <img
           src={fullSrc}
           alt={item.baseName}
-          className={`max-w-full max-h-full object-contain cursor-zoom-in transition-all duration-300
+          className={`absolute inset-0 w-full h-full object-contain cursor-zoom-in transition-opacity duration-300
             ${fullLoaded ? 'opacity-100' : 'opacity-0'}`}
           style={{ transform: `scale(${zoom})` }}
           onClick={handleDbClick}

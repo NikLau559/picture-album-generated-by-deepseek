@@ -84,7 +84,7 @@ export function PreviewModal(): JSX.Element {
 
   const renderViewer = (): JSX.Element => {
     if (previewItem.isLivePhoto) {
-      return <LivePhotoViewer item={previewItem} />
+      return <LivePhotoViewer item={previewItem} thumbnailSrc={thumbDataUri} />
     }
     if (previewItem.type === 'video') {
       return <VideoViewer item={previewItem} />
