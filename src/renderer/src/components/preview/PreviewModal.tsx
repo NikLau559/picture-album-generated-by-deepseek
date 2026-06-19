@@ -1,7 +1,7 @@
 import { useEffect, useCallback, useState } from 'react'
 import { X } from 'lucide-react'
 import { useAppStore } from '../../store/useAppStore'
-import { ImageViewer, prunePreviewCache } from './ImageViewer'
+import { ImageViewer } from './ImageViewer'
 import { VideoViewer } from './VideoViewer'
 import { LivePhotoViewer } from './LivePhotoViewer'
 import { PreviewNav } from './PreviewNav'
@@ -56,13 +56,6 @@ export function PreviewModal(): JSX.Element {
       })
     }
   }, [previewItem?.filePath, previewIndex, filteredItems.length])
-
-  // Cleanup cache on close to prevent memory bloat
-  useEffect(() => {
-    return () => {
-      prunePreviewCache()
-    }
-  }, [])
 
   // Keyboard shortcuts
   const handleKeyDown = useCallback(

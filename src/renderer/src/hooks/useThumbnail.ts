@@ -4,7 +4,7 @@ const thumbnailCache = new Map<string, string>()
 
 export function useThumbnail(
   filePath: string | null,
-  size: 'small' | 'medium' | 'large' = 'small',
+  size: 'small' | 'medium' | 'large' | 'preview' = 'small',
   enabled = true
 ): { dataUri: string | null; loading: boolean; error: boolean } {
   const [dataUri, setDataUri] = useState<string | null>(null)

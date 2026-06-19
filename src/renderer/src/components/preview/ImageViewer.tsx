@@ -1,8 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import type { MediaItem } from '@shared/types'
-
-// Cache full-res previews to avoid re-converting HEIC on prev/next
-const previewCache = new Map<string, string>()
 
 interface ImageViewerProps {
   item: MediaItem
@@ -18,21 +15,9 @@ export function ImageViewer({ item, thumbnailSrc }: ImageViewerProps): JSX.Eleme
     setFullLoaded(false)
     setZoom(1)
 
-    // Check memory cache first
-    const cached = previewCache.get(item.filePath)
-    if (cached) {
-      setFullSrc(cached)
-      setFullLoaded(true)
-      return
-    }
-
-    // Load full-res from main process
     let cancelled = false
     window.electronAPI.readFileForPreview(item.filePath).then((src) => {
-      if (!cancelled) {
-        previewCache.set(item.filePath, src)
-        setFullSrc(src)
-      }
+      if (!cancelled) setFullSrc(src)
     })
 
     return () => { cancelled = true }
@@ -52,7 +37,7 @@ export function ImageViewer({ item, thumbnailSrc }: ImageViewerProps): JSX.Eleme
       className="max-w-full max-h-full flex items-center justify-center overflow-hidden p-8 relative"
       onWheel={handleWheel}
     >
-      {/* Thumbnail placeholder — visible until full image loads */}
+      {/* Thumbnail placeholder until preview loads */}
       {thumbnailSrc && !fullLoaded && (
         <img
           src={thumbnailSrc}
@@ -74,7 +59,6 @@ export function ImageViewer({ item, thumbnailSrc }: ImageViewerProps): JSX.Eleme
         />
       )}
 
-      {/* Loading spinner */}
       {!fullLoaded && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="w-10 h-10 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
@@ -82,16 +66,4 @@ export function ImageViewer({ item, thumbnailSrc }: ImageViewerProps): JSX.Eleme
       )}
     </div>
   )
-}
-
-// Max cache entries to prevent memory leaks
-const MAX_CACHE = 20
-export function prunePreviewCache(): void {
-  if (previewCache.size > MAX_CACHE) {
-    const keys = Array.from(previewCache.keys())
-    const toDelete = keys.slice(0, keys.length - MAX_CACHE)
-    for (const key of toDelete) {
-      previewCache.delete(key)
-    }
-  }
 }

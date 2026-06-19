@@ -8,16 +8,20 @@ import { cacheService } from './cache.service'
 const SIZE_MAP = {
   small: 200,
   medium: 400,
-  large: 800
+  large: 800,
+  preview: 1600
 }
+
+type ThumbSize = keyof typeof SIZE_MAP
 
 class ThumbnailService {
   async getThumbnail(
     filePath: string,
-    size: 'small' | 'medium' | 'large'
+    size: ThumbSize
   ): Promise<string> {
     const ext = extname(filePath).toLowerCase()
     const targetSize = SIZE_MAP[size]
+    const isPreview = size === 'preview'
 
     // Check cache first
     const cacheKey = this.buildCacheKey(filePath)
@@ -28,19 +32,18 @@ class ThumbnailService {
 
     try {
       if (ext === '.heic' || ext === '.heif') {
-        buffer = await this.generateHeicThumbnail(filePath, targetSize)
+        buffer = await this.generateHeicPreview(filePath, targetSize, isPreview)
       } else if (['.jpg', '.jpeg', '.png', '.webp', '.avif', '.tiff', '.bmp'].includes(ext)) {
-        buffer = await this.generateImageThumbnail(filePath, targetSize)
+        buffer = await this.generateImagePreview(filePath, targetSize, isPreview)
       } else {
-        // Video files
-        buffer = await this.generateVideoThumbnail(filePath, targetSize)
+        // Video files — don't resize, just extract frame
+        buffer = await this.generateVideoThumbnail(filePath, isPreview ? 800 : targetSize)
       }
 
       return cacheService.set(cacheKey, size, buffer)
     } catch (err) {
       console.error(`Failed to generate thumbnail for ${filePath}:`, err)
-      // Return a placeholder or null-like data URI
-      return this.getPlaceholderThumbnail(targetSize)
+      return this.getPlaceholderThumbnail(Math.min(targetSize, 400))
     }
   }
 
@@ -51,15 +54,39 @@ class ThumbnailService {
       .substring(0, 16)
   }
 
-  private async generateImageThumbnail(filePath: string, size: number): Promise<Buffer> {
+  private async generateImagePreview(
+    filePath: string,
+    size: number,
+    isPreview: boolean
+  ): Promise<Buffer> {
+    if (isPreview) {
+      // Fit within box, keep aspect ratio, good quality
+      return sharp(filePath)
+        .resize(size, size, { fit: 'inside', withoutEnlargement: true })
+        .jpeg({ quality: 85, progressive: true })
+        .toBuffer()
+    }
+    // Square crop for thumbnails
     return sharp(filePath)
       .resize(size, size, { fit: 'cover', withoutEnlargement: true })
       .jpeg({ quality: 80, progressive: true })
       .toBuffer()
   }
 
-  private async generateHeicThumbnail(filePath: string, size: number): Promise<Buffer> {
+  private async generateHeicPreview(
+    filePath: string,
+    size: number,
+    isPreview: boolean
+  ): Promise<Buffer> {
     const jpegBuffer = await heicToJpeg(filePath)
+    if (isPreview) {
+      // Fit within box, keep aspect ratio
+      return sharp(jpegBuffer)
+        .resize(size, size, { fit: 'inside', withoutEnlargement: true })
+        .jpeg({ quality: 85, progressive: true })
+        .toBuffer()
+    }
+    // Square crop for thumbnails
     return sharp(jpegBuffer)
       .resize(size, size, { fit: 'cover', withoutEnlargement: true })
       .jpeg({ quality: 80, progressive: true })

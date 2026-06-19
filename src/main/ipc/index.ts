@@ -1,11 +1,9 @@
 import { ipcMain, dialog } from 'electron'
-import { extname } from 'path'
 import { scanDirectoryService } from '../services/scanner'
 import { thumbnailService } from '../services/thumbnail-generator'
 import { metadataService } from '../services/metadata.service'
 import { cacheService } from '../services/cache.service'
 import { detectLivePhotos, getLivePhotoVideoPath } from '../services/live-photo.service'
-import { heicToJpeg } from '../services/heic.service'
 import type { ScanProgress } from '@shared/types'
 
 export function registerIpcHandlers(): void {
@@ -30,7 +28,7 @@ export function registerIpcHandlers(): void {
 
   // Thumbnail
   ipcMain.handle('thumbnail:get', async (_event, filePath: string, size: string) => {
-    return thumbnailService.getThumbnail(filePath, size as 'small' | 'medium' | 'large')
+    return thumbnailService.getThumbnail(filePath, size as 'small' | 'medium' | 'large' | 'preview')
   })
 
   // Metadata
@@ -38,15 +36,9 @@ export function registerIpcHandlers(): void {
     return metadataService.extractMetadata(filePath)
   })
 
-  // Preview
+  // Preview — use thumbnail service with preview size (1600px), cached on disk
   ipcMain.handle('preview:readFile', async (_event, filePath: string) => {
-    const ext = extname(filePath).toLowerCase()
-    if (ext === '.heic' || ext === '.heif') {
-      // Convert HEIC to JPEG for Chromium compatibility
-      const jpegBuffer = await heicToJpeg(filePath)
-      return `data:image/jpeg;base64,${jpegBuffer.toString('base64')}`
-    }
-    return `file:///${filePath.replace(/\\/g, '/')}`
+    return thumbnailService.getThumbnail(filePath, 'preview')
   })
 
   // Live Photo

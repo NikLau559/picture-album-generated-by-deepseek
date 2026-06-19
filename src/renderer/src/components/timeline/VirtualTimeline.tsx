@@ -1,4 +1,4 @@
-import { useRef, useMemo, useEffect, useCallback } from 'react'
+import { useRef, useMemo, useEffect, useCallback, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useAppStore } from '../../store/useAppStore'
 import { useTimelineGroups } from '../../hooks/useTimelineGroups'
@@ -6,19 +6,27 @@ import { MediaGrid } from './MediaGrid'
 import { TimelineScrubber } from './TimelineScrubber'
 import { FloatingMonthLabel } from './FloatingMonthLabel'
 
-const CARD_MARGIN = 8
+const CARD_GAP = 8
+const SCROLL_PADDING = 32  // p-4 = 16+16
+const SCRUBBER_WIDTH = 36  // pr-12
+const GROUP_GAP = 24       // pb-6 between groups
 
-function estimateGroupHeight(itemCount: number, thumbnailSize: number): number {
-  const containerWidth = 1000
-  const cardWidth = thumbnailSize + CARD_MARGIN * 2
-  const columns = Math.max(1, Math.floor(containerWidth / cardWidth))
+function estimateGroupHeight(
+  itemCount: number,
+  thumbnailSize: number,
+  containerWidth: number
+): number {
+  const availableWidth = containerWidth - SCROLL_PADDING - SCRUBBER_WIDTH
+  const cardWidth = thumbnailSize + CARD_GAP
+  const columns = Math.max(1, Math.floor(availableWidth / cardWidth))
   const rows = Math.ceil(itemCount / columns)
-  const rowHeight = thumbnailSize + CARD_MARGIN * 2 + 40
-  return rows * rowHeight + 12 // small gap between groups
+  const rowHeight = thumbnailSize + 28 // card height + date overlay
+  return rows * rowHeight + GROUP_GAP
 }
 
 export function VirtualTimeline(): JSX.Element {
   const scrollRef = useRef<HTMLDivElement>(null)
+  const [containerWidth, setContainerWidth] = useState(1000)
   const mediaItems = useAppStore(s => s.mediaItems)
   const activeFilter = useAppStore(s => s.activeFilter)
   const thumbnailSize = useAppStore(s => s.thumbnailSize)
@@ -27,11 +35,26 @@ export function VirtualTimeline(): JSX.Element {
 
   const groups = useTimelineGroups(mediaItems, activeFilter)
 
+  // Track actual container width for accurate column estimation
+  useEffect(() => {
+    const container = scrollRef.current
+    if (!container) return
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContainerWidth(entry.contentRect.width)
+      }
+    })
+    observer.observe(container)
+    // Initialize
+    setContainerWidth(container.clientWidth)
+    return () => observer.disconnect()
+  }, [])
+
   const virtualizer = useVirtualizer({
     count: groups.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: (i) => estimateGroupHeight(groups[i].items.length, thumbnailSize),
-    overscan: 2,
+    estimateSize: (i) => estimateGroupHeight(groups[i].items.length, thumbnailSize, containerWidth),
+    overscan: 3,
   })
 
   const flatFiltered = useMemo(() => groups.flatMap(g => g.items), [groups])
@@ -65,7 +88,6 @@ export function VirtualTimeline(): JSX.Element {
     const container = scrollRef.current
     if (!container) return
     container.addEventListener('scroll', handleScroll, { passive: true })
-    // Initialize
     handleScroll()
     return () => container.removeEventListener('scroll', handleScroll)
   }, [handleScroll])
@@ -97,6 +119,8 @@ export function VirtualTimeline(): JSX.Element {
               return (
                 <div
                   key={group.key}
+                  data-index={virtualRow.index}
+                  data-month-index={virtualRow.index}
                   style={{
                     position: 'absolute',
                     top: 0,
@@ -106,13 +130,11 @@ export function VirtualTimeline(): JSX.Element {
                   }}
                   ref={virtualizer.measureElement}
                 >
-                  <div data-month-index={virtualRow.index}>
-                    <MediaGrid
-                      items={group.items}
-                      thumbnailSize={thumbnailSize}
-                      onItemClick={handleItemClick}
-                    />
-                  </div>
+                  <MediaGrid
+                    items={group.items}
+                    thumbnailSize={thumbnailSize}
+                    onItemClick={handleItemClick}
+                  />
                 </div>
               )
             })}

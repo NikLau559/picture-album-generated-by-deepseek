@@ -26,6 +26,7 @@ class CacheService {
     await fs.mkdir(join(this.baseDir, 'small'), { recursive: true })
     await fs.mkdir(join(this.baseDir, 'medium'), { recursive: true })
     await fs.mkdir(join(this.baseDir, 'large'), { recursive: true })
+    await fs.mkdir(join(this.baseDir, 'preview'), { recursive: true })
 
     try {
       const data = await fs.readFile(this.manifestPath, 'utf-8')

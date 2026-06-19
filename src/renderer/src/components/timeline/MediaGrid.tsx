@@ -11,7 +11,7 @@ interface MediaGridProps {
 export function MediaGrid({ items, thumbnailSize, onItemClick }: MediaGridProps): JSX.Element {
   return (
     <div
-      className="p-4"
+      className="pb-6"
       style={{
         display: 'grid',
         gridTemplateColumns: `repeat(auto-fill, minmax(${thumbnailSize}px, 1fr))`,
