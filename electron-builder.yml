@@ -1,0 +1,30 @@
+appId: com.picture-album.app
+productName: Picture Album
+directories:
+  buildResources: resources
+  output: release
+files:
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!electron.vite.config.ts'
+  - '!{.eslintignore,.eslintrc.cjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
+  - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
+  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+asarUnpack:
+  - "node_modules/sharp/**"
+  - "node_modules/@ffmpeg-installer/**"
+win:
+  target:
+    - nsis
+  icon: resources/icon.ico
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+linux:
+  target:
+    - AppImage
+  icon: resources/icon.png
+mac:
+  target:
+    - dmg
+  icon: resources/icon.icns
