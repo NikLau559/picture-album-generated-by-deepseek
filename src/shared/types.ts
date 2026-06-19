@@ -63,6 +63,7 @@ export interface ElectronAPI {
   getThumbnail: (filePath: string, size: 'small' | 'medium' | 'large' | 'preview') => Promise<string>
   getMetadata: (filePath: string) => Promise<MediaMetadata | null>
   readFileForPreview: (filePath: string) => Promise<string>
+  readOriginalForPreview: (filePath: string) => Promise<string>
   getLivePhotoVideoPath: (heicPath: string) => Promise<string | null>
   clearThumbnailCache: () => Promise<void>
 }

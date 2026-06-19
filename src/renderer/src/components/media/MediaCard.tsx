@@ -13,23 +13,38 @@ export const MediaCard = memo(function MediaCard({ item, size, onClick }: MediaC
   const cardRef = useRef<HTMLDivElement>(null)
   const [isVisible, setIsVisible] = useState(false)
 
-  // Intersection Observer for lazy loading
+  // Lazy-load thumbnail only after card stays visible for 200ms
+  // Fast scrolling won't trigger loads for cards that flash by
   useEffect(() => {
     const el = cardRef.current
     if (!el) return
 
+    let timer: ReturnType<typeof setTimeout> | null = null
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          setIsVisible(true)
-          observer.disconnect()
+          // Card entered viewport — wait 200ms before loading
+          timer = setTimeout(() => {
+            setIsVisible(true)
+            observer.disconnect()
+          }, 200)
+        } else {
+          // Card left viewport — cancel pending load
+          if (timer) {
+            clearTimeout(timer)
+            timer = null
+          }
         }
       },
       { rootMargin: '200px' }
     )
 
     observer.observe(el)
-    return () => observer.disconnect()
+    return () => {
+      if (timer) clearTimeout(timer)
+      observer.disconnect()
+    }
   }, [])
 
   const { dataUri, loading } = useThumbnail(

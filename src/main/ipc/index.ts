@@ -49,6 +49,11 @@ export function registerIpcHandlers(): void {
     return thumbnailService.getThumbnail(filePath, 'preview')
   })
 
+  // Original file (full-res, for images/videos)
+  ipcMain.handle('preview:readOriginal', async (_event, filePath: string) => {
+    return `file:///${filePath.replace(/\\/g, '/')}`
+  })
+
   // Live Photo
   ipcMain.handle('livephoto:getVideoPath', async (_event, heicPath: string) => {
     return getLivePhotoVideoPath(heicPath)

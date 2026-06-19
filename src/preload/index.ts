@@ -23,6 +23,8 @@ const electronAPI: ElectronAPI = {
 
   readFileForPreview: (filePath: string) => ipcRenderer.invoke('preview:readFile', filePath),
 
+  readOriginalForPreview: (filePath: string) => ipcRenderer.invoke('preview:readOriginal', filePath),
+
   getLivePhotoVideoPath: (heicPath: string) => ipcRenderer.invoke('livephoto:getVideoPath', heicPath),
 
   clearThumbnailCache: () => ipcRenderer.invoke('cache:clear')

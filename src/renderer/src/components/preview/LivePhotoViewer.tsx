@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Play, Pause, Zap } from 'lucide-react'
+import { Play, Pause, Zap, RotateCw } from 'lucide-react'
 import type { MediaItem } from '@shared/types'
 
 interface LivePhotoViewerProps {
@@ -9,32 +9,53 @@ interface LivePhotoViewerProps {
 
 export function LivePhotoViewer({ item, thumbnailSrc }: LivePhotoViewerProps): JSX.Element {
   const videoRef = useRef<HTMLVideoElement>(null)
-  const [imageSrc, setImageSrc] = useState<string | null>(null)
+  const [previewSrc, setPreviewSrc] = useState<string | null>(null)
+  const [originalSrc, setOriginalSrc] = useState<string | null>(null)
   const [videoSrc, setVideoSrc] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [imageLoaded, setImageLoaded] = useState(false)
+  const [previewLoaded, setPreviewLoaded] = useState(false)
   const [playing, setPlaying] = useState(false)
   const [showVideo, setShowVideo] = useState(false)
   const [zoom, setZoom] = useState(1)
+  const [rotation, setRotation] = useState(0)
 
   useEffect(() => {
     setLoading(true)
     setPlaying(false)
     setShowVideo(false)
-    setImageLoaded(false)
+    setPreviewLoaded(false)
     setZoom(1)
+    setRotation(0)
+    setPreviewSrc(null)
+    setOriginalSrc(null)
+    setVideoSrc(null)
 
+    let cancelled = false
+
+    // Stage 1: 1600px previews (fast, cached)
     Promise.all([
       window.electronAPI.readFileForPreview(item.filePath),
       item.livePhotoVideoPath
         ? window.electronAPI.readFileForPreview(item.livePhotoVideoPath)
         : Promise.resolve(null),
-    ]).then(([imgPath, vidPath]) => {
-      setImageSrc(imgPath)
-      setVideoSrc(vidPath)
-      setLoading(false)
+    ]).then(([img, vid]) => {
+      if (!cancelled) {
+        setPreviewSrc(img)
+        setVideoSrc(vid)
+        setPreviewLoaded(true)
+        setLoading(false)
+      }
     })
+
+    // Stage 2: Full-res original in background
+    window.electronAPI.readOriginalForPreview(item.filePath).then((src) => {
+      if (!cancelled) setOriginalSrc(src)
+    })
+
+    return () => { cancelled = true }
   }, [item.filePath, item.livePhotoVideoPath])
+
+  const displaySrc = originalSrc || previewSrc
 
   const playVideo = useCallback(() => {
     if (!videoRef.current || !videoSrc) return
@@ -72,6 +93,11 @@ export function LivePhotoViewer({ item, thumbnailSrc }: LivePhotoViewerProps): J
     setZoom((prev) => (prev === 1 ? 2 : 1))
   }
 
+  const handleRotate = (): void => {
+    if (playing) return
+    setRotation((prev) => (prev + 90) % 360)
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center">
@@ -83,7 +109,7 @@ export function LivePhotoViewer({ item, thumbnailSrc }: LivePhotoViewerProps): J
   return (
     <div className="w-full h-full overflow-hidden p-8 relative" onWheel={handleWheel}>
       {/* Thumbnail placeholder */}
-      {thumbnailSrc && !imageLoaded && (
+      {thumbnailSrc && !previewLoaded && (
         <img
           src={thumbnailSrc}
           alt=""
@@ -92,15 +118,14 @@ export function LivePhotoViewer({ item, thumbnailSrc }: LivePhotoViewerProps): J
       )}
 
       {/* Still image */}
-      {imageSrc && (
+      {displaySrc && (
         <img
-          src={imageSrc}
+          src={displaySrc}
           alt={item.baseName}
           className={`absolute inset-0 w-full h-full object-contain cursor-zoom-in transition-opacity duration-300
             ${showVideo ? 'opacity-0' : 'opacity-100'}`}
-          style={{ transform: `scale(${zoom})` }}
+          style={{ transform: `rotate(${rotation}deg) scale(${zoom})` }}
           onClick={handleDbClick}
-          onLoad={() => setImageLoaded(true)}
           draggable={false}
         />
       )}
@@ -120,33 +145,47 @@ export function LivePhotoViewer({ item, thumbnailSrc }: LivePhotoViewerProps): J
       )}
 
       {/* Loading spinner */}
-      {!imageLoaded && (
+      {!previewLoaded && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="w-10 h-10 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
         </div>
       )}
 
-      {/* Live Photo button */}
-      {videoSrc && (
-        <button
-          onClick={toggleVideo}
-          className="absolute bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2
-                     bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 rounded-full
-                     text-amber-400 transition-colors z-10"
-        >
-          {playing ? (
-            <>
-              <Pause size={16} />
-              <span className="text-sm font-medium">Pause</span>
-            </>
-          ) : (
-            <>
-              <Zap size={16} />
-              <span className="text-sm font-medium">Live</span>
-            </>
-          )}
-        </button>
-      )}
+      {/* Action buttons */}
+      <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-2 z-10">
+        {/* Rotate button */}
+        {!playing && (
+          <button
+            onClick={handleRotate}
+            className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+            title="Rotate 90°"
+          >
+            <RotateCw size={18} />
+          </button>
+        )}
+
+        {/* Live Photo button */}
+        {videoSrc && (
+          <button
+            onClick={toggleVideo}
+            className="flex items-center gap-2 px-4 py-2
+                       bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 rounded-full
+                       text-amber-400 transition-colors"
+          >
+            {playing ? (
+              <>
+                <Pause size={16} />
+                <span className="text-sm font-medium">Pause</span>
+              </>
+            ) : (
+              <>
+                <Zap size={16} />
+                <span className="text-sm font-medium">Live</span>
+              </>
+            )}
+          </button>
+        )}
+      </div>
     </div>
   )
 }
